@@ -6,10 +6,10 @@ import sys
 OUTPUT_DIR = './output'
 
 def transform(mask_path):
-    print("hello from transform script")
+    #print("hello from transform script")
     # Check if the file exists
     if not os.path.exists(mask_path):
-        print(f"Error: Image file {mask_path} not found.")
+        print(f"Error: Mask file {mask_path} not found.")
         return
     
     # Extract the name of the mask file without extension
@@ -30,7 +30,7 @@ def transform(mask_path):
     if not os.path.exists(OUTPUT_DIR):
         os.makedirs(OUTPUT_DIR)
 
-    output_name = f'image_det_{nameMask}.png'
+    output_name = f'image_{nameMask}.png'
     cv2.imwrite(os.path.join(OUTPUT_DIR, output_name), mask.astype(np.uint8))
 
 if __name__ == "__main__":

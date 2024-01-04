@@ -4,9 +4,26 @@ const mongoose = require("mongoose"); //import mongoose
 
 // image_file schema
 const Image_fileSchema = new mongoose.Schema({
-    name: {type:String, required:true}, // nume of image
-    image: String, // the image url
+    name: {type:String, required:true}, // name of image
+    image_path: String, // the image path
     description: String, // the description of image
+    img_original:
+    {
+        data: Buffer,
+        contentType: String
+    },
+    img_3channels:
+    {
+        data: Buffer,
+        contentType: String
+    },
+    img_3channels_path: String,
+    mask_pred:
+    {
+        data: Buffer,
+        contentType: String
+    },
+    mask_pred_path: String
 });
 
 const Image_file = mongoose.model('Image_file', Image_fileSchema); //convert to model named Image_file
