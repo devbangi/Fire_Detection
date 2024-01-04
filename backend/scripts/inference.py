@@ -61,7 +61,9 @@ OUTPUT_DIR = './log'
 
 WRITE_OUTPUT = True
 
-WEIGHTS_FILE = 'C:/Users/angel/Desktop/licenta_ANGI/active_fire_detection_landset-8/activefire/src/train/murphy/unet_16f_2conv_762/train_output/model_{}_{}_final_weights.h5'.format(MODEL_NAME, MASK_ALGORITHM)
+#WEIGHTS_FILE = 'C:/Users/angel/Desktop/licenta_ANGI/active_fire_detection_landset-8/activefire/src/train/murphy/unet_16f_2conv_762/train_output/model_{}_{}_final_weights.h5'.format(MODEL_NAME, MASK_ALGORITHM)
+WEIGHTS_FILE = 'scripts/model_unet_Murphy_final_weights.h5'
+
 
 TH_FIRE = 0.25 # pragul; The threshold value, is a critical parameter that affects the model's sensitivity and specificity in identifying fire regions. The optimal threshold may need to be adjusted depending on the problem and the model's performance.
 def inference(image_path, mask_path):
