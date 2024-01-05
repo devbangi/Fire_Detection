@@ -1,5 +1,7 @@
 // we create a server.js file in our project's root directory to take care of the back-end
 
+const cors = require("cors")
+
 //initializes the dotenv : help that we can use our .env file in our project
 require('dotenv').config();
 
@@ -17,7 +19,7 @@ const routes = require('./routes/image_file');
 const app = express(); 
 
 // parses incoming requests with JSON payloads
-app.use(express.json()); 
+app.use(cors()).use(express.json()); 
 
 //to use the routes
 app.use('/', routes); 

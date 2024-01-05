@@ -12,9 +12,10 @@ router.post('/uploadImage_file', image_fileController.uploadImg, image_fileContr
 router.delete('/deleteAllImage_file', image_fileController.deleteAllImage_file);
 
 router.get('/image_file/:name', image_fileController.getOneImage_file);
+router.get('/image_file/download/:id', image_fileController.downloadOneImage_file);
 router.post('/image_file/:name', image_fileController.uploadImg, image_fileController.newDescriptionForAnImage);
-router.delete('/image_file/:name', image_fileController.deleteOneImage_file);
-router.put('/image_file', image_fileController.processImage_file);
+router.delete('/image_file', image_fileController.deleteOneImage_file); // sterg imaginea cu id ul dat in request la body
+router.put('/image_file', image_fileController.processImage_file); // procesez imaginea cu id ul dat in request la body
 
 // 4. Export the route to use in our server.js
 module.exports = router; // export to use in server.js

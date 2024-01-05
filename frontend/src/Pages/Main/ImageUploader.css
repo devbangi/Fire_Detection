@@ -1,0 +1,49 @@
+
+body {
+  background-image: url('../../Images/imgBanner.jpg'); 
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+.image-uploader-container {
+  text-align: center;
+  margin-top: 20px;
+}
+
+h2 {
+  display:inline-flex;
+  background-color: rgb(255, 254, 214);
+  color: rgb(0, 0, 0);
+  padding: 10px;
+  border-radius: 5px;
+}
+  
+.image-preview {
+  width: 200px;
+  height: 200px;
+  border: 2px dashed #ccc;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.image-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.upload-button {
+  padding: 10px 20px;
+  background-color: #3498db;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.upload-button:hover {
+  background-color: #2980b9;
+}
+  

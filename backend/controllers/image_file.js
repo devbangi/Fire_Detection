@@ -9,7 +9,6 @@ const multer = require('multer');
 
 // Function to execute the Python script for renaming the image
 const renameAndDuplicateImage = (imagePath, callback) => {
-    //const pythonScriptPath = path.join(__dirname, '../scripts', 'renameFile.py'); // Adjust the path accordingly
     const pythonScriptPath = path.join('scripts', 'renameFile.py'); // Adjust the path accordingly
     console.log(pythonScriptPath);
     exec(`${process.env.PYTHON_VERSION} ${pythonScriptPath} ${imagePath}`, (error, stdout, stderr) => {
@@ -39,12 +38,11 @@ const findCorrespondingMask = (imagePath, maskDirectory) => {
         console.log('Invalid image name format');
         return null;
     }
-    //console.log(imageName);
-    //console.log(imageNameParts);
+
     console.log(maskDirectory);
     const maskPattern = imageNameParts[0] + '_Murphy_p' + imageNameParts[1] + '.tif'; // Creating the mask pattern
-    //console.log(maskPattern);
     console.log(maskPattern);
+
     const maskPath = path.join(maskDirectory, maskPattern);
     console.log(maskPath);
     if (fs.existsSync(maskPath)) {
@@ -64,7 +62,7 @@ const findCorrespondingMaskName = (imagePath, maskDirectory) => {
         return null;
     }
     console.log(maskDirectory);
-    //console.log(imageNameParts);
+
     const maskPattern = imageNameParts[0] + '_Murphy_p' + imageNameParts[1] + '.tif'; // Creating the mask pattern
     console.log(maskPattern);
 
@@ -81,11 +79,10 @@ const findCorrespondingMaskName = (imagePath, maskDirectory) => {
 const makeImageFromPrediction = (imagePath, callback) => {
     // now we have prediction in ./log/Murphy folder, like "det_ImageName.txt"
     // we must make this .txt file to be a .png in black and white
-    //const predDirectory = 'C:/Users/angel/Desktop/anul4/SEM1/Retele3_Proiect-A/Bureaca_Angela-Emilia/File_Upload_App/log/Murphy';
     const predDirectory = 'log/Murphy';
     const predMask = `det_${getImageName(imagePath)}.txt`;
     const filePredPath = path.join(predDirectory, predMask);
-    //const pythonScriptPath = path.join(__dirname, '../scripts', 'transform_mask.py');
+
     const pythonScriptPath = path.join('scripts', 'transform_mask.py');
 
     if (fs.existsSync(filePredPath)) {
@@ -105,11 +102,10 @@ const makeImageFromPrediction = (imagePath, callback) => {
 
 const getPredictionFromModel = (imagePath, callback) => {
     const pythonScriptPath = path.join('scripts', 'inference.py'); // Adjust the path accordingly
-    //const pythonScriptPath = path.join(__dirname, '../scripts', 'inference.py'); // Adjust the path accordingly
+
     console.log(imagePath);
     console.log("python script path : " + pythonScriptPath);
 
-    //const maskDirectory = 'C:/Users/angel/Desktop/anul4/SEM1/Retele3_Proiect-A/Bureaca_Angela-Emilia/File_Upload_App/mask_patches';
     const maskDirectory = 'mask_patches';
     const maskPath = findCorrespondingMask(imagePath, maskDirectory);
     console.log(maskPath);
@@ -136,7 +132,6 @@ const getPredictionFromModel = (imagePath, callback) => {
 };
 
 const make3channelImageFromUploadedImage = (imagePath, callback) => {
-    //const pythonScriptPath = path.join(__dirname, '../scripts', 'convert_patch_to_3channels_image.py');
     const pythonScriptPath = path.join('scripts', 'convert_patch_to_3channels_image.py');
 
     if (fs.existsSync(imagePath)) {
@@ -166,7 +161,6 @@ const uploadImage_file = (req, res) => { // the request object or 'req' represen
                 image_path: req.file.path, // req.file.path instead of req.body.image because we want image to be our image file's path, not a string from req.body.image
                 description: req.body.description,
                 img_original: {
-                    //data: fs.readFileSync(path.join(__dirname, '../uploads', req.file.filename)),
                     data: fs.readFileSync(path.join('uploads', req.file.filename)),
                     contentType: 'image/tif'
                 },
@@ -194,13 +188,11 @@ const uploadImage_file = (req, res) => { // the request object or 'req' represen
                         const uploads_3channel_name = `3channels_${getImageName(data.image_path)}.png`;
 
                         //update and save the image_file object which corespond with id from parameters request 
-                        //const new3channelsData = fs.readFileSync(path.join(__dirname, '../3channel_uploads', uploads_3channel_name));
                         const new3channelsData = fs.readFileSync(path.join('3channel_uploads', uploads_3channel_name));
 
                         // Update mask_pred field
                         data.img_3channels.data = new3channelsData;
                         data.img_3channels.contentType = 'image/png';
-                        //data.img_3channels_path = path.join(__dirname, '../3channel_uploads', uploads_3channel_name);
                         data.img_3channels_path = path.join('3channel_uploads', uploads_3channel_name);
 
                         // Save the updated Image_file object
@@ -237,19 +229,16 @@ const processImage_file = (req, res) => { // the request object or 'req' represe
                     return res.json({ message: error });
                 }
                 else {
-                    //const maskDirectory = 'C:/Users/angel/Desktop/anul4/SEM1/Retele3_Proiect-A/Bureaca_Angela-Emilia/File_Upload_App/mask_patches';
                     const maskDirectory = 'mask_patches';
                     const output_name = `image_det_${((findCorrespondingMaskName(data.image_path, maskDirectory)).split('.')[0]).replace('_Murphy', '')}.png`;
 
                     //update and save the image_file object which corespond with id from parameters request 
                     // Read the mask_pred data
-                    //const newMaskData = fs.readFileSync(path.join(__dirname, '../output', output_name));
                     const newMaskData = fs.readFileSync(path.join('output', output_name));
 
                     // Update mask_pred field
                     data.mask_pred.data = newMaskData;
                     data.mask_pred.contentType = 'image/png';
-                    //data.mask_pred_path = path.join(__dirname, '../output', output_name);
                     data.mask_pred_path = path.join('output', output_name);
 
                     // Save the updated Image_file object
@@ -308,10 +297,6 @@ const deleteAllImage_file = (req, res) => {
 
         // List of directories to delete contents from
         const directoriesToDelete = [
-            // path.join(__dirname, '../uploads'),
-            // path.join(__dirname, '../3channel_uploads'),
-            // path.join(__dirname, '../log/Murphy'),
-            // path.join(__dirname, '../output')
             path.join('uploads'),
             path.join('3channel_uploads'),
             path.join('log/Murphy'),
@@ -338,7 +323,6 @@ const deleteAllImage_file = (req, res) => {
 //GET '/image_file/:name'
 const getOneImage_file = (req, res) => {
     let name = req.params.name; //get the image_file name
-
     //find the specific image_file with that name
     Image_file.findOne({ name: name }, (err, data) => {
         if (err || !data) {
@@ -348,6 +332,39 @@ const getOneImage_file = (req, res) => {
         else return res.json(data); //return the image_file object if found
     });
 };
+
+//GET '/image_file/:id'
+const downloadOneImage_file = (req, res) => {
+    const id = req.body.id;
+    console.log(id);
+    Image_file.findOne({ _id: id }, (err, data) => {
+        if (!data) {
+            if (err) return res.json(`Something went wrong, please try again. ${err}`);
+            return res.json({ message: "Image_file doesn't exist in the database." });
+        } else {
+            // here make to download image
+            // Create a folder with the image name if it doesn't exist
+            const folderPath = path.join('images_downloaded', getImageName(data.image_path));
+            if (!fs.existsSync(folderPath)) {
+                fs.mkdirSync(folderPath);
+            }
+
+            // Function to save image to the folder
+            const saveImage = (imageName, imageData) => {
+                const imagePath = path.join(folderPath, imageName);
+                fs.writeFileSync(imagePath, imageData, 'binary');
+            };
+
+            // Save all images to the folder
+            saveImage('img_original.tif', data.img_original.data);
+            saveImage('img_3channels.png', data.img_3channels.data);
+            saveImage('mask_pred.png', data.mask_pred.data);
+
+            res.status(200).json({ message: "Images downloaded successfully." });
+        }
+    });
+};
+
 
 //POST '/image_file/:name'
 const newDescriptionForAnImage = (req, res) => {
@@ -376,17 +393,64 @@ const newDescriptionForAnImage = (req, res) => {
 
 //DELETE '/image_file/:name'
 const deleteOneImage_file = (req, res) => {
-    let name = req.params.name; // get the name of image_file to delete
+    const id = req.body.id;
 
-    Image_file.deleteOne({ name: name }, (err, data) => {
-        //if there's nothing to delete return a message
-        if (data.deletedCount == 0) return res.json({ message: "Image_file doesn't exist." });
-        //else if there's an error, return the err message
-        else if (err) return res.json(`Something went wrong, please try again. ${err}`);
-        //else, return the success message
-        else return res.json({ message: "Image_file deleted." });
+    Image_file.findOne({ _id: id }, (err, data) => {
+        if (!data) {
+            if (err) return res.json(`Something went wrong, please try again. ${err}`);
+            return res.json({ message: "Image_file doesn't exist in the database." });
+        } else {
+            // Function to delete a file
+            const deleteFile = (filePath) => {
+                console.log(filePath);
+                fs.unlink(filePath, (err) => {
+                    if (err) {
+                        console.error(`Failed to delete ${filePath}`);
+                    }
+                });
+            };
+
+            // Delete files from various folders
+            const imagePathsToDelete = [
+                data.image_path,
+                data.img_3channels_path,
+                data.mask_pred_path
+            ];
+
+            imagePathsToDelete.forEach((filePath) => {
+                if (filePath)
+                    deleteFile(filePath);
+            });
+
+            // Delete corresponding text files from log/Murphy folder
+            const logMurphyDir = path.join('log/Murphy');
+            const imageName = getImageName(data.image_path);
+
+            // Split the name by "_RT"
+            let parts = imageName.split('_RT');
+
+            if (parts.length === 2) {
+                // Reconstruct the name by inserting "_Murphy" after "_RT"
+                let modifiedName = parts[0] + '_RT_Murphy' + parts[1];
+                //console.log(modifiedName); // LC08_L1TP_152029_20200814_20200814_01_RT_Murphy_p00570
+                deleteFile(path.join(logMurphyDir, `grd_${modifiedName}.txt`));
+            } else {
+                console.log('Invalid image name format');
+            }
+
+            deleteFile(path.join(logMurphyDir, `det_${imageName}.txt`));
+
+            // Delete the document from the database
+            Image_file.deleteOne({ _id: id }, (err, result) => {
+                if (err) {
+                    return res.json(`Failed to delete from the database: ${err}`);
+                }
+                return res.json({ message: "Image_file and associated files deleted." });
+            });
+        }
     });
 };
+
 
 // We use multer.diskStorage() to create a storage where our uploaded images will be stored
 const storage = multer.diskStorage({
@@ -414,4 +478,5 @@ module.exports = {
     deleteOneImage_file,
     uploadImg,  // we just have to export uploadImg to use in our routes/image_file.js and include it as middleware
     processImage_file,
+    downloadOneImage_file,
 };

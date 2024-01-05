@@ -4,7 +4,7 @@ FROM node:14
 # you can specify python version during image build
 ARG PYTHON_VERSION=3.10.9
 
-WORKDIR /File_Upload_App
+WORKDIR /backend
 
 RUN apt-get update
 

@@ -1,0 +1,28 @@
+version: "3.8"
+
+networks:
+  Fire_Detection:
+    name: Fire_Detection
+
+services:
+  rp_backend_service:
+    image: rp_backend_image
+    restart: always
+    scale: 5
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    networks:
+      - Fire_Detection
+  
+  mynginx:
+    image: rp_mynginx_image
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    ports:
+      - 80:80
+    networks:
+      - Fire_Detection
+    depends_on:
+            - rp_backend_service
