@@ -1,11 +1,20 @@
 const { exec } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+var Minio = require("minio");
 
 //import image_file model
 const Image_file = require('../models/image_file');
 // multer is a node.js middleware useful for uploading files
 const multer = require('multer');
+
+var minioClient = new Minio.Client({
+    endPoint: process.env.MINIO_ENDPOINT,
+    port: Number(process.env.MINIO_PORT),
+    useSSL: false,
+    accessKey: process.env.MINIO_ACCESS_KEY,
+    secretKey: process.env.MINIO_SECRET_KEY
+});
 
 // Function to execute the Python script for renaming the image
 const renameAndDuplicateImage = (imagePath, callback) => {
@@ -103,12 +112,9 @@ const makeImageFromPrediction = (imagePath, callback) => {
 const getPredictionFromModel = (imagePath, callback) => {
     const pythonScriptPath = path.join('scripts', 'inference.py'); // Adjust the path accordingly
 
-    console.log(imagePath);
-    console.log("python script path : " + pythonScriptPath);
-
     const maskDirectory = 'mask_patches';
     const maskPath = findCorrespondingMask(imagePath, maskDirectory);
-    console.log(maskPath);
+
     exec(`${process.env.PYTHON_VERSION} ${pythonScriptPath} ${imagePath} ${maskPath}`, (error, stdout, stderr) => {
         if (error) {
             console.error(`Error executing Python script for inference: ${error}`);
@@ -116,8 +122,49 @@ const getPredictionFromModel = (imagePath, callback) => {
         }
         console.log(`Python script for inference output: ${stdout}`);
         console.error(`Python script for inference errors: ${stderr}`);
-        // now we have prediction in ./log/Murphy folder, like "det_ImageName.txt"
+        // now we have prediction in /log/Murphy folder, like "det_ImageName.txt"
         // we must make this .txt file to be a .png in black and white
+        // but before make.png, must upload /log/Murphy/det_ImageName.txt and /log/Murphy/grd_ImageName.txt in minio bucket
+        const predDirectory = 'log/Murphy';
+        const imageName = getImageName(imagePath);
+        const predMask1 = `det_${imageName}.txt`;
+        const filePredPath1 = path.join(predDirectory, predMask1);
+        const fileStream1 = fs.createReadStream(filePredPath1);
+        let predMask2 = ''
+        // Split the name by "_RT"
+        let parts = imageName.split('_RT');
+
+        if (parts.length === 2) {
+            // Reconstruct the name by inserting "_Murphy" after "_RT"
+            let modifiedName = parts[0] + '_RT_Murphy' + parts[1];
+            predMask2 = `grd_${modifiedName}.txt`;
+        } else {
+            console.log('Invalid image name format');
+        }
+
+        const filePredPath2 = path.join(predDirectory, predMask2);
+        const fileStream2 = fs.createReadStream(filePredPath2);
+
+        minioClient.putObject(process.env.MINIO_BUCKET_NAME, filePredPath1, fileStream1, function (error1, etag1) {
+            if (error1) {
+                console.error(`Error uploading ${filePredPath1} to Minio:`, error1);
+                // Handle error for filePredPath1 upload
+            } else {
+                console.log(`${filePredPath1} saved successfully in Minio bucket`);
+                // Handle success for filePredPath1 upload
+                // Now, upload the second file
+                minioClient.putObject(process.env.MINIO_BUCKET_NAME, filePredPath2, fileStream2, function (error2, etag2) {
+                    if (error2) {
+                        console.error(`Error uploading ${filePredPath2} to Minio:`, error2);
+                        // Handle error for filePredPath2 upload
+                    } else {
+                        console.log(`${filePredPath2} saved successfully in Minio bucket`);
+                        // Handle success for filePredPath2 upload
+                    }
+                });
+            }
+        });
+
         makeImageFromPrediction(imagePath, (error, message) => {
             if (error) {
                 return res.json({ message: error });
@@ -180,6 +227,15 @@ const uploadImage_file = (req, res) => { // the request object or 'req' represen
             newImage_file.save((err, data) => {
                 if (err) return res.json({ Error: err });
 
+                // if original file saved successfully, now we can save it in minio bucket; this will save in bucket like : upload/img_name
+                minioClient.putObject(process.env.MINIO_BUCKET_NAME, data.image_path, data.img_original.data, function (error, etag) {
+                    console.log("in minio putOject method")
+                    if (error) {
+                        return console.log(error);
+                    }
+                    console.log("original image saved successfully in minio bucket")
+                });
+
                 make3channelImageFromUploadedImage(data.image_path, (error, message) => {
                     if (error) {
                         return res.json({ message: error });
@@ -202,6 +258,15 @@ const uploadImage_file = (req, res) => { // the request object or 'req' represen
                                 return res.json({ message: "Failed to update img_3channels field." });
                             }
                             console.log("img_3channels updated successfully");
+
+                            minioClient.putObject(process.env.MINIO_BUCKET_NAME, data.img_3channels_path, data.img_3channels.data, function (error, etag) {
+                                console.log("in minio putOject method")
+                                if (error) {
+                                    return console.log(error);
+                                }
+                                console.log("img_3channels saved successfully in minio bucket")
+                            });
+
                             return res.json({ message: "img_3channels updated successfully", updatedImageFile: savedImageFile });
                         });
                     }
@@ -218,11 +283,30 @@ const processImage_file = (req, res) => { // the request object or 'req' represe
     //check if the image_file name already exists in db
     console.log(req.body.id);
     Image_file.findOne({ _id: req.body.id }, (err, data) => {
-        //if image_file not in db
         if (!data) {
+            //if image_file not in db
             if (err) return res.json(`Something went wrong, please try again. ${err}`);
             return res.json({ message: "Image_file doesn't exist in bd." });
         } else {
+            console.log("Image_file exist in bd.")
+            // before processing image, we must be sure that we have image
+            if (fs.existsSync(data.image_path)) {
+                console.log(`${data.image_path} Image file found in my local storage`);
+            } else {
+                // the image isn't locally, so we must get from minio bucket
+                console.log(`${data.image_path} Image file NOT found in my local storage. Fetching from Minio...`);
+
+                minioClient.fGetObject(process.env.MINIO_BUCKET_NAME, data.image_path, data.image_path, function (error) {
+                    if (error) {
+                        console.error('Error fetching file from Minio:', error);
+                        return res.json({ message: 'Failed to fetch file from Minio.' });
+                    }
+
+                    console.log(`${data.image_path} saved successfully in my folder from Minio`);
+                    //res.json({ message: 'File fetched from Minio.' });
+                });
+            }
+
             // Execute the proccesing function for get prediction
             getPredictionFromModel(data.image_path, (error, message) => {
                 if (error) {
@@ -247,6 +331,20 @@ const processImage_file = (req, res) => { // the request object or 'req' represe
                             console.log("Failed to update mask_pred field.");
                             return res.json({ message: "Failed to update mask_pred field." });
                         }
+                        // we could save /output/image_filename.png
+                        const predDirectory = 'output';
+                        const predMask1 = `image_det_${getImageName(data.image_path)}.png`;
+                        const filePredPath1 = path.join(predDirectory, predMask1);
+                        const fileStream1 = fs.createReadStream(filePredPath1);
+                        minioClient.putObject(process.env.MINIO_BUCKET_NAME, filePredPath1, fileStream1, function (error2, etag2) {
+                            if (error2) {
+                                console.error(`Error uploading ${filePredPath1} to Minio:`, error2);
+                                // Handle error for filePredPath2 upload
+                            } else {
+                                console.log(`${filePredPath1} saved successfully in Minio bucket`);
+                                // Handle success for filePredPath2 upload
+                            }
+                        });
                         console.log("Mask_pred updated successfully");
                         return res.json({ message: "Mask_pred updated successfully", updatedImageFile: savedImageFile });
                     });
@@ -326,41 +424,26 @@ const getOneImage_file = (req, res) => {
     //find the specific image_file with that name
     Image_file.findOne({ name: name }, (err, data) => {
         if (err || !data) {
-            return res.json({ message: "Image_file doesn't exist." });
+            return res.json({ message: "Image_file doesn't exist in database." });
         }
-
-        else return res.json(data); //return the image_file object if found
+        else {
+            return res.json(data); //return the image_file object if found
+        }
     });
 };
 
 //GET '/image_file/:id'
 const downloadOneImage_file = (req, res) => {
-    const id = req.body.id;
-    console.log(id);
-    Image_file.findOne({ _id: id }, (err, data) => {
-        if (!data) {
-            if (err) return res.json(`Something went wrong, please try again. ${err}`);
-            return res.json({ message: "Image_file doesn't exist in the database." });
+    const filename = req.body.filename;
+    console.log(filename);
+
+    minioClient.getObject(process.env.MINIO_BUCKET_NAME, req.query.filename, function (error, stream) {
+        if (error) {
+            console.error(`Error downloading ${fileName} from Minio:`, error);
+            res.status(500).send(error);
         } else {
-            // here make to download image
-            // Create a folder with the image name if it doesn't exist
-            const folderPath = path.join('images_downloaded', getImageName(data.image_path));
-            if (!fs.existsSync(folderPath)) {
-                fs.mkdirSync(folderPath);
-            }
-
-            // Function to save image to the folder
-            const saveImage = (imageName, imageData) => {
-                const imagePath = path.join(folderPath, imageName);
-                fs.writeFileSync(imagePath, imageData, 'binary');
-            };
-
-            // Save all images to the folder
-            saveImage('img_original.tif', data.img_original.data);
-            saveImage('img_3channels.png', data.img_3channels.data);
-            saveImage('mask_pred.png', data.mask_pred.data);
-
-            res.status(200).json({ message: "Images downloaded successfully." });
+            //res.setHeader('Content-disposition', `attachment; filename=${fileName}`);
+            stream.pipe(res);
         }
     });
 };
@@ -391,6 +474,17 @@ const newDescriptionForAnImage = (req, res) => {
     });
 };
 
+// Function to delete file from Minio bucket
+const deleteFileFromMinio = (filePath) => {
+    minioClient.removeObject(process.env.MINIO_BUCKET_NAME, filePath, function (err) {
+        if (err) {
+            console.error(`Error deleting ${filePath} from Minio:`, err);
+        } else {
+            console.log(`${filePath} deleted successfully from Minio`);
+        }
+    });
+};
+
 //DELETE '/image_file/:name'
 const deleteOneImage_file = (req, res) => {
     const id = req.body.id;
@@ -400,13 +494,17 @@ const deleteOneImage_file = (req, res) => {
             if (err) return res.json(`Something went wrong, please try again. ${err}`);
             return res.json({ message: "Image_file doesn't exist in the database." });
         } else {
-            // Function to delete a file
+            // Function to delete a file locally and from minio bucket
             const deleteFile = (filePath) => {
                 console.log(filePath);
                 fs.unlink(filePath, (err) => {
                     if (err) {
-                        console.error(`Failed to delete ${filePath}`);
+                        console.error(`Error deleting ${filePath} locally:`, err);
+                    } else {
+                        console.log(`${filePath} deleted successfully locally`);
                     }
+                    // Delete file from Minio bucket after deleting locally
+                    deleteFileFromMinio(filePath);
                 });
             };
 
